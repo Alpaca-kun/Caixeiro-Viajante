@@ -3,137 +3,178 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
-#include <vector>
-#include <valarray>
+#include <tr1/utility> //tr1
+#include <vector> 
 
 using namespace std;
-//using namespace std::tr1;
+using namespace std::tr1;
 
-
-
-struct city {
+struct positions {
   double xPos,
          yPos;
 };
 
-typedef vector<city> vectorCities;
+typedef vector<int> vectorInts;
+typedef vector<positions> vectorPositions;
+vectorPositions vectorInputPositions;
 
-struct tour {
-  vectorCities visitedCities;
-  double distance;
+struct individual {
+  vector<int> sequenceOfPointers;
+  double cost;
 };
 
-typedef vector<tour> vectorTour;
-vectorTour ableTours; 
+typedef vector<individual> vectorIndividual;
+vectorIndividual allIndividuals; 
+vectorIndividual newIndividuals; 
 
-//verify sort condition
 struct sortByDistance {
-  bool operator()(const vectorTour& unsortedPopulation1,  const vectorTour& unsortedPopulation2) const{
-    return (unsortedPopulation1.distance > unsortedPopulation2.distance);
+  bool operator()(const individual unsortedIndividual1,  const individual unsortedIndividual2) const{
+    return (unsortedIndividual1.cost < unsortedIndividual2.cost);
   }
 };
 
-/*
-bool sortByDistance (const vectorTour& unsortedTour1, const vectorTour& unsortedTour2) const {
-  for (size_t i = 0; i < unsortedTour1.size() && i < unsortedTour2.size(); i++) {
-    if (unsortedTour1[i] > unsortedTour2)
-  }
-}
-*/
-
-double calculateTour(double x1, double x2, double y1, double y2) {
-  return sqrt(sqrt(abs(x2 - x1)) + sqrt(abs(y2 - y1)));
+double calculateCost(double x1, double x2, double y1, double y2) {
+  return sqrt(pow((x2 - x1), 2) + pow((y2 - y1), 2));
 }
 
-void fitness (vectorTour& ableTours, vectorCities& selectedTour, int tourSize) { //calculateTour
+void population (vectorInts& x) {
+  random_shuffle(x.begin(), x.end());
+}
+
+void fitness (vectorInts& randomizedVector, int individualSize) {
   double totalDistance = 0;
 
-  for (int i = 1; i < tourSize; i++) {
-    if (i == tourSize - 1) {
-      huotalDistance += calculateTour(selectedTour[0].xPos, selectedTour[0].yPos, 
-                                     selectedTour[i].xPos, selectedTour[i].yPos);
+  for (int i = 0; i < individualSize; i++) {
+    if (i == 0) {
+      totalDistance += calculateCost(vectorInputPositions[randomizedVector[i]].xPos, 
+                                     vectorInputPositions[randomizedVector[i]].yPos, 
+                                     vectorInputPositions[randomizedVector[individualSize - 1]].xPos, 
+                                     vectorInputPositions[randomizedVector[individualSize - 1]].yPos);
     }
     else {
-      totalDistance += calculateTour(selectedTour[i].xPos, selectedTour[i].yPos, 
-                                     selectedTour[i - 1].xPos, selectedTour[i - 1].yPos);
+      totalDistance += calculateCost(vectorInputPositions[randomizedVector[i]].xPos, 
+                                     vectorInputPositions[randomizedVector[i]].yPos, 
+                                     vectorInputPositions[randomizedVector[i - 1]].xPos, 
+                                     vectorInputPositions[randomizedVector[i - 1]].yPos);
     } 
   }
 
-  tour accomplishedJourney = {selectedTour, totalDistance};
-  ableTours.push_back(accomplishedJourney);
+  individual individualWithDates = {randomizedVector, totalDistance};
+  allIndividuals.push_back(individualWithDates);
+  sort(allIndividuals.begin(), allIndividuals.end(), sortByDistance());
 }
 
-double selection (vectorTour& population) { //Select tours of population
-  sort(population.begin(), population.end(), sortByDistance());
+void selection (vectorIndividual& allIndividuals) { //Select individuals of population
+  individual parent1 = {allIndividuals[0].sequenceOfPointers, allIndividuals[0].cost};
+  individual parent2 = {allIndividuals[1].sequenceOfPointers, allIndividuals[1].cost};
 
-  tour pai1 = {population[0].visitedCities, population[0].distance};
-  tour pai2 = {population[1].visitedCities, population[1].distance};
+  newIndividuals.push_back(parent1);
+  newIndividuals.push_back(parent2);
 }
 
-double crossOver () {
+void mutation (vectorInts& child) {
+  int swap1, 
+      swap2,
+      sizeOfVector = child.size();
+
+  swap1 = rand() % sizeOfVector;
+  swap2 = rand() % sizeOfVector;
+
+  swap(child[swap1], child[swap2]);
+}
+
+void crossOver () {
+  int decision,
+      sizeOfVector = newIndividuals[0].sequenceOfPointers.size();
+
+  individual child;
+  vectorInts newVectorChild, verifyRepetition(sizeOfVector, 0);
+
+  for (int i = 0; i < sizeOfVector; i++) {
+    decision = rand() % 2;
+
+    if (decision == 0) 
+      newVectorChild.push_back(newIndividuals[0].sequenceOfPointers[i]);
+    else
+      newVectorChild.push_back(newIndividuals[1].sequenceOfPointers[i]);
+  }
   
+  for (int i = 0; i < sizeOfVector; i++) {
+    if (verifyRepetition[newVectorChild[i] - 1] == 0)
+      verifyRepetition[newVectorChild[i]]++;
+    else {
+      newVectorChild[i] = -1;
+    }
+  }
+
+  for (int i = 0; i < sizeOfVector; i++) {
+    if (newVectorChild[i] == -1) {
+      for (int j = 0; j < sizeOfVector; j++) {
+        if (verifyRepetition[j] == 0) {
+          newVectorChild[i] = j + 1;
+        }
+      }
+    }
+  }
+
+  int mutationTax = rand() % 100;
+
+  if (mutationTax < 1)
+    mutation(newVectorChild);
+
+  newIndividuals.push_back({newVectorChild, 0});
 }
 
-double mutation () {
 
-}
-
-double accepting () {
-
-}
-
-double replace () {
-
-}
-
-double test () {
-
-}
-
-
+/*--------------------------------------------MAIN---------------------------------------------------*/
 int main () {
   int numVertex,
-      generations = 10000,
+      numIndividual = 25,
+      generations = 100000,
       aux;
 
   double xPosition,
          yPosition;
 
-  city oneCity; 
+  positions inputPosition; 
+  vectorInts randomVectorInts;
+
+  srand(time(NULL));
 
   cin >> numVertex;
   for (int i = 0; i < numVertex; i++) {
     cin >> aux;
-    cin.ignore();
     cin >> xPosition >> yPosition;
 
-    oneCity = {xPosition, yPosition};
-    vectorCities.push_back(city);
+    inputPosition = {xPosition, yPosition};
+    vectorInputPositions.push_back(inputPosition);
+    randomVectorInts.push_back(i + 1);
   }
 
+  for (int i = 0; i < numIndividual; i++) {
+    population(randomVectorInts);
+    fitness(randomVectorInts, numVertex);
+  }
+  
   for (int i = 0; i < generations; i++) {
-    fitness(vectorCities, vectorCities.size());
-    //Create new population
-    selection();
-    crossOver();
-    mutation();
-    accepting();
-    replace();
-    test();
+    selection(allIndividuals);
+    
+    int probability = rand() % 10;
+
+    if (probability <= 8) //ocorre crossover com 80 %
+      crossOver();
+      
+    int sizeOfIndividualVector = newIndividuals[0].sequenceOfPointers.size();
+    for (int j = 0; j < newIndividuals.size(); j++) 
+      fitness(newIndividuals[j].sequenceOfPointers, sizeOfIndividualVector);
+
+    int difference = allIndividuals.size() - newIndividuals.size();
+
+    for (int j = 0; j < difference; j++)
+      allIndividuals.pop_back();
+
+    newIndividuals.clear();
   }   
 
-  /* Passos
-   * Fitness == Adequacao (re-calculate the values between cities)
-   * New population (criate a new trajectory, from the following steps)
-   *    Selection (select two cities to turn into the parents)
-   *    Crossover ()
-   *    Mutation
-   *    Accepting
-   * Replace
-   * Test (if the population returns the best condition or the result, stop the algorithm and return the value)
-   * Loop (loop the process from Fitness)
-   *
-   * Codigo por permutacao
-   *
-   */
+  cout << allIndividuals[0].cost << endl;
 }
